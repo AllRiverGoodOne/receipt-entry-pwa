@@ -1,0 +1,14 @@
+.certs/
+pages-dist/
+__pycache__/
+*.pyc
+
+# Local-only operation documents and intranet tools
+iPhone_PWA導入手順.md
+イントラPWA導入手順.md
+ショートカット設定手順.md
+共通PWA配信環境.md
+領収書PWA_詳細仕様書.md
+scripts/create_intranet_certificates.py
+scripts/serve_intranet.py
+tests/test_intranet_server.py

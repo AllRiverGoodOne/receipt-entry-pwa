@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'">
+  <meta name="theme-color" content="#176b87">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="領収書入力">
+  <title>領収書入力</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div>
+        <p class="eyebrow">やよい入力準備</p>
+        <h1>領収書入力</h1>
+      </div>
+      <span id="connectionBadge" class="status-badge">接続確認中</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="capture-section" aria-labelledby="captureHeading">
+      <div class="section-heading">
+        <div>
+          <p class="step-label">STEP 1</p>
+          <h2 id="captureHeading">領収書を読み取る</h2>
+        </div>
+      </div>
+      <button id="captureButton" class="button primary" type="button">領収書を撮影</button>
+      <p id="shortcutStatus" class="status-message" role="status">撮影を開始できます。</p>
+      <p id="readError" class="error-message" role="alert" hidden></p>
+    </section>
+
+    <form id="receiptForm" class="receipt-form" hidden novalidate>
+      <section aria-labelledby="detailsHeading">
+        <div class="section-heading">
+          <div>
+            <p class="step-label">STEP 2</p>
+            <h2 id="detailsHeading">内容を確認・修正</h2>
+          </div>
+        </div>
+
+        <div class="field-grid">
+          <label class="field">
+            <span>取引日 <span class="required">必須</span></span>
+            <input id="transactionDate" name="transaction_date" type="text" inputmode="numeric" placeholder="2026/09/27" autocomplete="off">
+          </label>
+          <label class="field">
+            <span>税込合計金額 <span class="required">必須</span></span>
+            <span class="amount-input"><span>¥</span><input id="totalGross" name="total_gross" type="number" inputmode="numeric" min="1" step="1"></span>
+          </label>
+          <label class="field field-wide">
+            <span>発行者 <span class="required">必須</span></span>
+            <input id="issuer" name="issuer" type="text" autocomplete="organization">
+          </label>
+          <label class="field field-wide">
+            <span>店舗・施設名</span>
+            <input id="facility" name="facility" type="text" autocomplete="off">
+          </label>
+        </div>
+
+        <div class="classification-grid">
+          <div class="field">
+            <label for="account">勘定科目 <span class="required">要確認</span></label>
+            <select id="account" name="account"></select>
+            <button id="applyAccountSuggestion" class="suggestion" type="button" hidden></button>
+          </div>
+          <div class="field">
+            <label for="counterparty">取引先 <span class="required">要確認</span></label>
+            <select id="counterparty" name="counterparty"></select>
+            <button id="applyCounterpartySuggestion" class="suggestion" type="button" hidden></button>
+          </div>
+          <label class="field">
+            <span>取引手段</span>
+            <input id="paymentMethod" value="現金" readonly>
+          </label>
+        </div>
+        <p id="recommendationEvidence" class="supporting-text" hidden></p>
+      </section>
+
+      <section aria-labelledby="linesHeading">
+        <div class="section-heading line-heading">
+          <div>
+            <p class="step-label">明細</p>
+            <h2 id="linesHeading">税率別明細</h2>
+          </div>
+          <button id="addLine" class="button compact secondary" type="button">明細を追加</button>
+        </div>
+        <div id="taxLines" class="tax-lines"></div>
+        <div id="totalCheck" class="total-check" role="status"></div>
+      </section>
+
+      <section id="unreadableSection" aria-labelledby="unreadableHeading" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="step-label">確認事項</p>
+            <h2 id="unreadableHeading">読み取れなかった項目</h2>
+          </div>
+        </div>
+        <p class="supporting-text">内容を入力した後、各項目を確認済みにしてください。</p>
+        <ul id="unreadableFields" class="unreadable-list"></ul>
+      </section>
+
+      <section class="save-section" aria-labelledby="saveHeading">
+        <div class="section-heading">
+          <div>
+            <p class="step-label">STEP 3</p>
+            <h2 id="saveHeading">確定して保存</h2>
+          </div>
+        </div>
+        <div id="validationSummary" class="validation-summary" role="alert"></div>
+        <button id="saveButton" class="button primary" type="submit" disabled>確定して保存</button>
+        <button id="clearButton" class="button text-button" type="button">入力内容を消去</button>
+      </section>
+    </form>
+
+    <section id="saveResult" class="result-section" aria-live="polite" hidden>
+      <p class="step-label">保存結果</p>
+      <h2 id="saveResultHeading"></h2>
+      <p id="saveResultDetail"></p>
+      <button id="newReceiptButton" class="button primary" type="button">次の領収書を入力</button>
+    </section>
+  </main>
+
+  <template id="taxLineTemplate">
+    <article class="tax-line">
+      <div class="tax-line-header">
+        <h3></h3>
+        <button class="icon-button remove-line" type="button" title="この明細を削除" aria-label="この明細を削除">×</button>
+      </div>
+      <label class="field field-wide">
+        <span>摘要 <span class="required">必須</span></span>
+        <input class="line-description" type="text" autocomplete="off">
+      </label>
+      <div class="line-grid">
+        <label class="field">
+          <span>税込金額 <span class="required">必須</span></span>
+          <span class="amount-input"><span>¥</span><input class="line-amount" type="number" inputmode="numeric" min="1" step="1"></span>
+        </label>
+        <label class="field">
+          <span>税率 <span class="required">必須</span></span>
+          <select class="line-rate">
+            <option value="10%">10%</option>
+            <option value="8%">8%</option>
+            <option value="対象外">対象外</option>
+          </select>
+        </label>
+      </div>
+    </article>
+  </template>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

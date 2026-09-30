@@ -1,0 +1,21 @@
+{
+  "apps": [
+    {
+      "id": "receipt",
+      "name": "領収書入力",
+      "description": "領収書を撮影し、内容を確認して記録するPWAです。",
+      "source": ".",
+      "files": [
+        "index.html",
+        "styles.css",
+        "app.js",
+        "receipt-core.js",
+        "recommendations.js",
+        "manifest.webmanifest",
+        "sw.js",
+        "icons/icon-192.png",
+        "icons/icon-512.png"
+      ]
+    }
+  ]
+}
