@@ -121,7 +121,7 @@ function readForm() {
     issuer: $("issuer").value,
     facility: $("facility").value,
     account: $("account").value,
-    payment_method: "現金",
+    payment_method: "普通預金（三井住友銀行）",
     counterparty: $("counterparty").value,
     total_gross: $("totalGross").value,
     tax_lines: [...taxLinesElement.querySelectorAll(".tax-line")].map((line) => ({

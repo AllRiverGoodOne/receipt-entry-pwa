@@ -15,7 +15,7 @@ const completeReceipt = {
   issuer: "アパサービス株式会社",
   facility: "アパホテル〈広島駅前新幹線口〉",
   account: "出張経費",
-  payment_method: "現金",
+  payment_method: "普通預金（三井住友銀行）",
   counterparty: "宿泊",
   total_gross: 8200,
   tax_lines: [

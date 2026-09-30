@@ -62,7 +62,9 @@ export function validateReceipt(receipt) {
   if (!receipt.issuer?.trim()) errors.push("発行者を入力してください。");
   if (!receipt.account?.trim()) errors.push("勘定科目を確認してください。");
   if (!receipt.counterparty?.trim()) errors.push("取引先を確認してください。");
-  if (receipt.payment_method !== "現金") errors.push("取引手段は現金です。");
+  if (receipt.payment_method !== "普通預金（三井住友銀行）") {
+    errors.push("取引手段は普通預金（三井住友銀行）です。");
+  }
   if (!isPositiveInteger(receipt.total_gross)) errors.push("税込合計金額を1円以上の整数で入力してください。");
   if (!Array.isArray(receipt.tax_lines) || receipt.tax_lines.length === 0) {
     errors.push("明細を1件以上入力してください。");
@@ -103,7 +105,7 @@ export function buildFinalReceipt(receipt) {
     issuer: receipt.issuer.trim(),
     facility: receipt.facility.trim(),
     account: receipt.account,
-    payment_method: "現金",
+    payment_method: "普通預金（三井住友銀行）",
     counterparty: receipt.counterparty,
     total_gross: Number(receipt.total_gross),
     tax_lines: receipt.tax_lines.map((line) => ({
