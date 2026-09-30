@@ -301,13 +301,13 @@ function receiveCallback() {
       const savedReceipt = draft ? JSON.parse(draft) : null;
       if (savedReceipt?.receipt_id) markSaved(savedReceipt.receipt_id);
       localStorage.removeItem(STORAGE_KEY);
-      showSaveResult("success", "OneDriveへ保存しました", result || "保存ショートカットから成功結果を受信しました。");
+      showSaveResult("success", "iCloud Driveへ保存しました", result || "保存ショートカットから成功結果を受信しました。");
     } else if (flow === "save" && callback === "cancel") {
       loadDraft();
       showSaveResult("cancel", "保存をキャンセルしました", "入力内容を保持しています。");
     } else if (flow === "save" && callback === "error") {
       loadDraft();
-      showSaveResult("error", "OneDriveへの保存を確認してください", errorMessage || "保存ショートカットからエラーが返されました。入力内容を保持しています。");
+      showSaveResult("error", "iCloud Driveへの保存を確認してください", errorMessage || "保存ショートカットからエラーが返されました。入力内容を保持しています。");
     }
   } catch (error) {
     loadDraft();

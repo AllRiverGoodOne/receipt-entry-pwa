@@ -40,4 +40,4 @@ npm run build
 - 保存ショートカットへの確定JSON受け渡し
 - Web App ManifestとService Worker
 
-OneDrive保存、PC停止後の起動、ホーム画面からショートカットへの往復は、公開後にiPhone実機で確認する。
+iCloud Drive保存、PC停止後の起動、ホーム画面からショートカットへの往復は、公開後にiPhone実機で確認する。
