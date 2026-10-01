@@ -15,6 +15,7 @@ export function parseReceiptResponse(value) {
     transaction_date: typeof parsed.transaction_date === "string" ? parsed.transaction_date : "",
     issuer: typeof parsed.issuer === "string" ? parsed.issuer : "",
     facility: typeof parsed.facility === "string" ? parsed.facility : "",
+    memo: typeof parsed.memo === "string" ? parsed.memo : "",
     total_gross: parsed.total_gross ?? "",
     tax_lines: Array.isArray(parsed.tax_lines) ? parsed.tax_lines.map((line) => ({
       description: typeof line?.description === "string" ? line.description : "",
@@ -59,7 +60,7 @@ export function totalCheckMessage(receipt) {
 export function validateReceipt(receipt) {
   const errors = [];
   if (!isValidDate(receipt.transaction_date)) errors.push("取引日をYYYY/MM/DD形式の有効な日付で入力してください。");
-  if (!receipt.issuer?.trim()) errors.push("発行者を入力してください。");
+  if (!receipt.facility?.trim()) errors.push("店舗名・ホテル名を入力してください。");
   if (!receipt.account?.trim()) errors.push("勘定科目を確認してください。");
   if (!receipt.counterparty?.trim()) errors.push("取引先を確認してください。");
   if (receipt.payment_method !== "普通預金（三井住友銀行）") {
@@ -71,7 +72,7 @@ export function validateReceipt(receipt) {
   } else {
     receipt.tax_lines.forEach((line, index) => {
       const position = index + 1;
-      if (!line.description?.trim()) errors.push(`明細${position}の摘要を入力してください。`);
+      if (!line.description?.trim()) errors.push(`明細${position}の明細内容を入力してください。`);
       if (!isPositiveInteger(line.amount_gross)) errors.push(`明細${position}の税込金額を1円以上の整数で入力してください。`);
       if (!ALLOWED_TAX_RATES.has(line.tax_rate)) errors.push(`明細${position}の税率を確認してください。`);
     });
@@ -102,8 +103,9 @@ export function buildFinalReceipt(receipt) {
   return {
     receipt_id: receipt.receipt_id,
     transaction_date: receipt.transaction_date.trim(),
-    issuer: receipt.issuer.trim(),
+    issuer: receipt.issuer?.trim() ?? "",
     facility: receipt.facility.trim(),
+    memo: receipt.memo?.trim() ?? "",
     account: receipt.account,
     payment_method: "普通預金（三井住友銀行）",
     counterparty: receipt.counterparty,

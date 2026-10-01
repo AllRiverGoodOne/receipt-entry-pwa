@@ -1,7 +1,7 @@
 {
   "name": "iPhone領収書入力",
   "short_name": "領収書入力",
-  "description": "領収書を読み取り、確認したJSONをiCloud Driveへ保存するPWA",
+  "description": "出張中のコンビニと宿泊の領収書を読み取り、JSONをiCloud Driveへ保存するPWA",
   "lang": "ja",
   "start_url": "./",
   "scope": "./",

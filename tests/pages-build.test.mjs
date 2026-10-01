@@ -49,3 +49,15 @@ test("公開PWAは相対URLとオフライン制御を使用する", async () =>
   assert.match(app, /navigator\.serviceWorker\.controller/);
   assert.match(app, /history\.replaceState\(null, "", window\.location\.pathname\)/);
 });
+
+test("公開PWAはコンビニと宿泊に特化した入力画面を含む", async () => {
+  const html = await readFile(path.join(outputRoot, "index.html"), "utf8");
+  assert.match(html, /data-entry-mode="convenience"/);
+  assert.match(html, /data-entry-mode="lodging"/);
+  assert.match(html, /id="memo"/);
+  assert.match(html, />明細内容 /);
+
+  const app = await readFile(path.join(outputRoot, "app.js"), "utf8");
+  assert.match(app, /counterparty: "コンビニ"/);
+  assert.match(app, /counterparty: "宿泊"/);
+});

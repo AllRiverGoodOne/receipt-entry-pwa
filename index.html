@@ -26,17 +26,27 @@
   </header>
 
   <main>
-    <section class="capture-section" aria-labelledby="captureHeading">
+    <section id="modeSelection" class="capture-section" aria-labelledby="captureHeading">
       <div class="section-heading">
         <div>
           <p class="step-label">STEP 1</p>
-          <h2 id="captureHeading">領収書を読み取る</h2>
+          <h2 id="captureHeading">利用場面を選ぶ</h2>
         </div>
       </div>
-      <button id="captureButton" class="button primary" type="button">領収書を撮影</button>
-      <p id="shortcutStatus" class="status-message" role="status">撮影を開始できます。</p>
-      <p id="readError" class="error-message" role="alert" hidden></p>
+      <div class="mode-actions">
+        <button class="button mode-button convenience" type="button" data-entry-mode="convenience">
+          <span>コンビニ</span>
+          <small>選択して撮影</small>
+        </button>
+        <button class="button mode-button lodging" type="button" data-entry-mode="lodging">
+          <span>宿泊</span>
+          <small>選択して撮影</small>
+        </button>
+      </div>
     </section>
+
+    <p id="shortcutStatus" class="status-message app-status" role="status">利用場面を選択してください。</p>
+    <p id="readError" class="error-message app-status" role="alert" hidden></p>
 
     <form id="receiptForm" class="receipt-form" hidden novalidate>
       <section aria-labelledby="detailsHeading">
@@ -45,6 +55,7 @@
             <p class="step-label">STEP 2</p>
             <h2 id="detailsHeading">内容を確認・修正</h2>
           </div>
+          <span id="selectedModeBadge" class="entry-mode-badge"></span>
         </div>
 
         <div class="field-grid">
@@ -57,32 +68,15 @@
             <span class="amount-input"><span>¥</span><input id="totalGross" name="total_gross" type="number" inputmode="numeric" min="1" step="1"></span>
           </label>
           <label class="field field-wide">
-            <span>発行者 <span class="required">必須</span></span>
-            <input id="issuer" name="issuer" type="text" autocomplete="organization">
-          </label>
-          <label class="field field-wide">
-            <span>店舗・施設名</span>
+            <span>店舗名・ホテル名 <span class="required">必須</span></span>
             <input id="facility" name="facility" type="text" autocomplete="off">
           </label>
-        </div>
-
-        <div class="classification-grid">
-          <div class="field">
-            <label for="account">勘定科目 <span class="required">要確認</span></label>
-            <select id="account" name="account"></select>
-            <button id="applyAccountSuggestion" class="suggestion" type="button" hidden></button>
-          </div>
-          <div class="field">
-            <label for="counterparty">取引先 <span class="required">要確認</span></label>
-            <select id="counterparty" name="counterparty"></select>
-            <button id="applyCounterpartySuggestion" class="suggestion" type="button" hidden></button>
-          </div>
-          <label class="field">
-            <span>取引手段</span>
-            <input id="paymentMethod" value="普通預金（三井住友銀行）" readonly>
+          <label class="field field-wide">
+            <span>摘要</span>
+            <input id="memo" name="memo" type="text" autocomplete="off">
           </label>
         </div>
-        <p id="recommendationEvidence" class="supporting-text" hidden></p>
+        <input id="issuer" name="issuer" type="hidden">
       </section>
 
       <section aria-labelledby="linesHeading">
@@ -121,12 +115,6 @@
       </section>
     </form>
 
-    <section id="saveResult" class="result-section" aria-live="polite" hidden>
-      <p class="step-label">保存結果</p>
-      <h2 id="saveResultHeading"></h2>
-      <p id="saveResultDetail"></p>
-      <button id="newReceiptButton" class="button primary" type="button">次の領収書を入力</button>
-    </section>
   </main>
 
   <template id="taxLineTemplate">
@@ -136,7 +124,7 @@
         <button class="icon-button remove-line" type="button" title="この明細を削除" aria-label="この明細を削除">×</button>
       </div>
       <label class="field field-wide">
-        <span>摘要 <span class="required">必須</span></span>
+        <span>明細内容 <span class="required">必須</span></span>
         <input class="line-description" type="text" autocomplete="off">
       </label>
       <div class="line-grid">

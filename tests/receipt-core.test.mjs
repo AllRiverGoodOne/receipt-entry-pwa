@@ -14,6 +14,7 @@ const completeReceipt = {
   transaction_date: "2026/09/27",
   issuer: "アパサービス株式会社",
   facility: "アパホテル〈広島駅前新幹線口〉",
+  memo: "広島出張宿泊分",
   account: "出張経費",
   payment_method: "普通預金（三井住友銀行）",
   counterparty: "宿泊",
@@ -68,6 +69,16 @@ test("8%と10%の混在明細を保持する", () => {
   assert.equal(validateReceipt(receipt).length, 0);
   assert.equal(finalReceipt.tax_lines[0].description, "シウマイ炒飯弁当軽");
   assert.deepEqual(finalReceipt.tax_lines.map((line) => line.tax_rate), ["8%", "10%"]);
+});
+
+test("弥生用摘要を前後空白なしで保存する", () => {
+  const finalReceipt = buildFinalReceipt({ ...completeReceipt, memo: "  広島出張宿泊分  " });
+  assert.equal(finalReceipt.memo, "広島出張宿泊分");
+});
+
+test("発行会社が空でも店舗名またはホテル名があれば保存できる", () => {
+  assert.equal(validateReceipt({ ...completeReceipt, issuer: "" }).length, 0);
+  assert.ok(validateReceipt({ ...completeReceipt, facility: "" }).includes("店舗名・ホテル名を入力してください。"));
 });
 
 test("未確認項目がある場合は検証エラーになる", () => {

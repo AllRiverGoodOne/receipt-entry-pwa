@@ -1,21 +1,28 @@
 import {
   buildFinalReceipt,
   parseReceiptResponse,
-  recommendClassification,
   totalCheckMessage,
   totalDifference,
   validateReceipt
 } from "./receipt-core.js";
-import {
-  ACCOUNT_OPTIONS,
-  COUNTERPARTY_OPTIONS,
-  RECOMMENDATION_RULES
-} from "./recommendations.js";
 
 const STORAGE_KEY = "receiptPwaDraftV1";
 const SAVED_IDS_KEY = "receiptPwaSavedIdsV1";
+const MODE_KEY = "receiptPwaEntryModeV1";
 const OCR_SHORTCUT_NAME = "伝票OCRテスト";
 const SAVE_SHORTCUT_NAME = "伝票JSON保存テスト";
+const ENTRY_MODES = {
+  convenience: {
+    label: "コンビニ",
+    account: "出張経費",
+    counterparty: "コンビニ"
+  },
+  lodging: {
+    label: "宿泊",
+    account: "出張経費",
+    counterparty: "宿泊"
+  }
+};
 let serviceWorkerRegistrationPromise = null;
 
 const $ = (id) => document.getElementById(id);
@@ -23,25 +30,15 @@ const form = $("receiptForm");
 const taxLinesElement = $("taxLines");
 let unreadableFields = [];
 let receiptId = "";
-let currentSuggestion = null;
+let currentMode = "";
 
 function newReceiptId() {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function populateSelect(select, options, placeholder) {
-  select.replaceChildren();
-  const empty = document.createElement("option");
-  empty.value = "";
-  empty.textContent = placeholder;
-  select.append(empty);
-  options.forEach((value) => {
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = value;
-    select.append(option);
-  });
+function entryMode() {
+  return ENTRY_MODES[currentMode] || null;
 }
 
 function callbackUrl(flow, status) {
@@ -115,14 +112,17 @@ function renumberLines() {
 }
 
 function readForm() {
+  const mode = entryMode();
   return {
     receipt_id: receiptId,
+    entry_mode: currentMode,
     transaction_date: $("transactionDate").value,
     issuer: $("issuer").value,
     facility: $("facility").value,
-    account: $("account").value,
+    memo: $("memo").value,
+    account: mode?.account ?? "",
     payment_method: "普通預金（三井住友銀行）",
-    counterparty: $("counterparty").value,
+    counterparty: mode?.counterparty ?? "",
     total_gross: $("totalGross").value,
     tax_lines: [...taxLinesElement.querySelectorAll(".tax-line")].map((line) => ({
       description: line.querySelector(".line-description").value,
@@ -134,19 +134,23 @@ function readForm() {
 }
 
 function writeForm(receipt) {
+  currentMode = receipt.entry_mode || localStorage.getItem(MODE_KEY) || "";
+  const mode = entryMode();
+  if (!mode) throw new Error("利用場面を選択してください。");
+  localStorage.setItem(MODE_KEY, currentMode);
   receiptId = receipt.receipt_id || newReceiptId();
   $("transactionDate").value = receipt.transaction_date ?? "";
   $("issuer").value = receipt.issuer ?? "";
   $("facility").value = receipt.facility ?? "";
-  $("account").value = receipt.account ?? "";
-  $("counterparty").value = receipt.counterparty ?? "";
+  $("memo").value = receipt.memo ?? "";
   $("totalGross").value = receipt.total_gross ?? "";
   unreadableFields = [...(receipt.unreadable_fields || [])];
   taxLinesElement.replaceChildren();
   (receipt.tax_lines || []).forEach(addTaxLine);
   renderUnreadableFields();
+  $("selectedModeBadge").textContent = mode.label;
+  $("modeSelection").hidden = true;
   form.hidden = false;
-  $("saveResult").hidden = true;
   updateFormState();
 }
 
@@ -169,25 +173,6 @@ function renderUnreadableFields() {
     list.append(item);
   });
   $("unreadableSection").hidden = unreadableFields.length === 0;
-}
-
-function updateSuggestion(receipt) {
-  currentSuggestion = recommendClassification(receipt, RECOMMENDATION_RULES);
-  const accountButton = $("applyAccountSuggestion");
-  const counterpartyButton = $("applyCounterpartySuggestion");
-  const evidence = $("recommendationEvidence");
-  if (!currentSuggestion) {
-    accountButton.hidden = true;
-    counterpartyButton.hidden = true;
-    evidence.hidden = true;
-    return;
-  }
-  accountButton.textContent = `候補「${currentSuggestion.account}」を選択`;
-  counterpartyButton.textContent = `候補「${currentSuggestion.counterparty}」を選択`;
-  accountButton.hidden = $("account").value === currentSuggestion.account;
-  counterpartyButton.hidden = $("counterparty").value === currentSuggestion.counterparty;
-  evidence.textContent = currentSuggestion.evidence;
-  evidence.hidden = false;
 }
 
 function updateFormState() {
@@ -224,7 +209,6 @@ function updateFormState() {
     summary.className = "validation-summary";
   }
   $("saveButton").disabled = errors.length > 0 || savedIds().includes(receiptId);
-  updateSuggestion(receipt);
   persistDraft(receipt);
 }
 
@@ -259,22 +243,17 @@ function markSaved(id) {
   localStorage.setItem(SAVED_IDS_KEY, JSON.stringify(ids));
 }
 
-function resetEntry() {
+function resetEntry(status = "利用場面を選択してください。") {
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(MODE_KEY);
   receiptId = "";
+  currentMode = "";
   unreadableFields = [];
   taxLinesElement.replaceChildren();
   form.reset();
   form.hidden = true;
-  $("saveResult").hidden = true;
-  setReadStatus("撮影を開始できます。");
-}
-
-function showSaveResult(kind, heading, detail) {
-  form.hidden = kind === "success";
-  $("saveResult").hidden = false;
-  $("saveResultHeading").textContent = heading;
-  $("saveResultDetail").textContent = detail;
+  $("modeSelection").hidden = false;
+  setReadStatus(status);
 }
 
 function receiveCallback() {
@@ -288,26 +267,25 @@ function receiveCallback() {
   try {
     if (flow === "read" && callback === "success") {
       if (result === null) throw new Error("読み取り結果が返されませんでした。");
-      writeForm(parseReceiptResponse(result));
+      const mode = localStorage.getItem(MODE_KEY) || "";
+      writeForm({ ...parseReceiptResponse(result), entry_mode: mode });
       setReadStatus("領収書の読み取り結果を受信しました。内容を確認してください。");
     } else if (flow === "read" && callback === "cancel") {
-      loadDraft();
-      setReadStatus("撮影をキャンセルしました。入力内容は保持されています。");
+      resetEntry("撮影をキャンセルしました。利用場面を選び直せます。");
     } else if (flow === "read" && callback === "error") {
-      loadDraft();
+      resetEntry("読み取りを再実行できます。");
       setReadStatus("読み取りを再実行できます。", errorMessage || "ショートカットでエラーが発生しました。");
     } else if (flow === "save" && callback === "success") {
       const draft = localStorage.getItem(STORAGE_KEY);
       const savedReceipt = draft ? JSON.parse(draft) : null;
       if (savedReceipt?.receipt_id) markSaved(savedReceipt.receipt_id);
-      localStorage.removeItem(STORAGE_KEY);
-      showSaveResult("success", "iCloud Driveへ保存しました", result || "保存ショートカットから成功結果を受信しました。");
+      resetEntry("iCloud Driveへ保存しました。次の利用場面を選択できます。");
     } else if (flow === "save" && callback === "cancel") {
       loadDraft();
-      showSaveResult("cancel", "保存をキャンセルしました", "入力内容を保持しています。");
+      setReadStatus("保存をキャンセルしました。入力内容を保持しています。");
     } else if (flow === "save" && callback === "error") {
       loadDraft();
-      showSaveResult("error", "iCloud Driveへの保存を確認してください", errorMessage || "保存ショートカットからエラーが返されました。入力内容を保持しています。");
+      setReadStatus("iCloud Driveへの保存を確認してください。", errorMessage || "保存ショートカットからエラーが返されました。入力内容を保持しています。");
     }
   } catch (error) {
     loadDraft();
@@ -318,32 +296,24 @@ function receiveCallback() {
   return true;
 }
 
-populateSelect($("account"), ACCOUNT_OPTIONS, "候補から選択してください");
-populateSelect($("counterparty"), COUNTERPARTY_OPTIONS, "候補から選択してください");
-
 $("connectionBadge").textContent = window.isSecureContext ? "PWA接続" : "HTTP試験環境";
 
-$("captureButton").addEventListener("click", async () => {
-  if (!(await ensureOfflineControl())) return;
-  if (!form.hidden) persistDraft(readForm());
-  setReadStatus("読み取りショートカットを起動しています。");
-  runShortcut(OCR_SHORTCUT_NAME, "read");
+document.querySelectorAll("[data-entry-mode]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const mode = button.dataset.entryMode;
+    const configuration = ENTRY_MODES[mode];
+    if (!configuration || !(await ensureOfflineControl())) return;
+    currentMode = mode;
+    receiptId = newReceiptId();
+    localStorage.setItem(MODE_KEY, mode);
+    localStorage.removeItem(STORAGE_KEY);
+    setReadStatus(`${configuration.label}の読み取りショートカットを起動しています。`);
+    runShortcut(OCR_SHORTCUT_NAME, "read");
+  });
 });
 
 $("addLine").addEventListener("click", () => {
   addTaxLine();
-  updateFormState();
-});
-
-$("applyAccountSuggestion").addEventListener("click", () => {
-  if (!currentSuggestion) return;
-  $("account").value = currentSuggestion.account;
-  updateFormState();
-});
-
-$("applyCounterpartySuggestion").addEventListener("click", () => {
-  if (!currentSuggestion) return;
-  $("counterparty").value = currentSuggestion.counterparty;
   updateFormState();
 });
 
@@ -364,8 +334,7 @@ form.addEventListener("submit", async (event) => {
   runShortcut(SAVE_SHORTCUT_NAME, "save", JSON.stringify(finalReceipt));
 });
 
-$("clearButton").addEventListener("click", resetEntry);
-$("newReceiptButton").addEventListener("click", resetEntry);
+$("clearButton").addEventListener("click", () => resetEntry());
 
 if (!receiveCallback()) loadDraft();
 
